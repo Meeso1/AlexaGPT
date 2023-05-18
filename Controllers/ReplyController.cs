@@ -11,6 +11,7 @@ namespace AlexaGPT.Controllers;
 [Route("reply")]
 public class ReplyController : ControllerBase
 {
+    private readonly ElevenLabsClient _elevenLabs;
     private readonly IOpenAIService _openAi;
 
     public ReplyController()
@@ -20,10 +21,11 @@ public class ReplyController : ControllerBase
             ApiKey = Environment.GetEnvironmentVariable("OPEN_AI_KEY") ??
                      throw new InvalidOperationException("OPEN_AI_KEY is not defined")
         });
+        _elevenLabs = new ElevenLabsClient(ElevenLabsAuthentication.LoadFromEnv());
     }
 
     [HttpPost]
-    public async Task<string> Post(IFormFile audio)
+    public async Task<ActionResult> Post(IFormFile audio)
     {
         var transcription = await _openAi.Audio.CreateTranscription(new AudioCreateTranscriptionRequest
         {
@@ -36,24 +38,38 @@ public class ReplyController : ControllerBase
         });
 
         if (!transcription.Successful)
-            return transcription.Error is null
-                ? "Unknown error occured when connecting to OpenAI speech-to-text API"
-                : $"Error {transcription.Error.Code}: {transcription.Error.Message}";
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                error = transcription.Error is null
+                    ? "Unknown error occured when connecting to OpenAI speech-to-text API"
+                    : $"Error {transcription.Error.Code}: {transcription.Error.Message}"
+            });
 
         var result = await _openAi.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
         {
             Messages = new List<ChatMessage>
             {
-                ChatMessage.FromSystem("You are a versatile assistant"),
+                ChatMessage.FromSystem("You are a helpful voice assistant, answering questions. All your answers"
+                                       + " will be converted to speech, so avoid using symbols that are difficult to "
+                                       + "convert (i.e. '```' symbols for code snippets)"),
                 ChatMessage.FromUser(transcription.Text)
             },
             Model = Models.ChatGpt3_5Turbo
         });
 
-        return result.Successful
-            ? result.Choices.First().Message.Content
-            : result.Error is null
-                ? "Unknown error occured when connecting to OpenAI chat API"
-                : $"Error {result.Error.Code}: {result.Error.Message}";
+        if (!result.Successful)
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                error = result.Error is null
+                    ? "Unknown error occured when connecting to OpenAI chat API"
+                    : $"Error {result.Error.Code}: {result.Error.Message}"
+            });
+
+        var voice = (await _elevenLabs.VoicesEndpoint.GetAllVoicesAsync()).First(voice => voice.Name == "Elli");
+        var defaults = await _elevenLabs.VoicesEndpoint.GetDefaultVoiceSettingsAsync();
+        var path = await _elevenLabs.TextToSpeechEndpoint.TextToSpeechAsync(result.Choices.First().Message.Content,
+            voice, defaults, deleteCachedFile: true);
+
+        return File(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read), "audio/mp3");
     }
 }
