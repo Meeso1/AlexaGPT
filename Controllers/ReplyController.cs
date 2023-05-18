@@ -23,14 +23,29 @@ public class ReplyController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<string> Post(string prompt)
+    public async Task<string> Post(IFormFile audio)
     {
+        var transcription = await _openAi.Audio.CreateTranscription(new AudioCreateTranscriptionRequest
+        {
+            FileName = $"audio.{Path.GetExtension(audio.FileName)}",
+            FileStream = audio.OpenReadStream(),
+            Language = "en",
+            ResponseFormat = "text",
+            Model = "whisper-1",
+            Temperature = 0.2f
+        });
+
+        if (!transcription.Successful)
+            return transcription.Error is null
+                ? "Unknown error occured when connecting to OpenAI speech-to-text API"
+                : $"Error {transcription.Error.Code}: {transcription.Error.Message}";
+
         var result = await _openAi.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
         {
             Messages = new List<ChatMessage>
             {
                 ChatMessage.FromSystem("You are a versatile assistant"),
-                ChatMessage.FromUser(prompt)
+                ChatMessage.FromUser(transcription.Text)
             },
             Model = Models.ChatGpt3_5Turbo
         });
@@ -38,7 +53,7 @@ public class ReplyController : ControllerBase
         return result.Successful
             ? result.Choices.First().Message.Content
             : result.Error is null
-                ? "Unknown error occured when connecting to OpenAI API"
+                ? "Unknown error occured when connecting to OpenAI chat API"
                 : $"Error {result.Error.Code}: {result.Error.Message}";
     }
 }
