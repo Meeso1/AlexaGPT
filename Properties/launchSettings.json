@@ -27,7 +27,8 @@
       "applicationUrl": "https://localhost:7290;http://localhost:5175",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "OPEN_AI_KEY": "key"
+        "OPEN_AI_KEY": "key",
+        "ELEVEN_LABS_API_KEY": "key"
       }
     },
     "IIS Express": {

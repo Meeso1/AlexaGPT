@@ -1,5 +1,7 @@
 using ElevenLabs;
 using Microsoft.AspNetCore.Mvc;
+using NAudio.Wave;
+using NLayer.NAudioSupport;
 using OpenAI.GPT3;
 using OpenAI.GPT3.Interfaces;
 using OpenAI.GPT3.Managers;
@@ -71,6 +73,12 @@ public class ReplyController : ControllerBase
         var path = await _elevenLabs.TextToSpeechEndpoint.TextToSpeechAsync(result.Choices.First().Message.Content,
             voice, defaults, deleteCachedFile: true);
 
-        return File(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read), "audio/mp3");
+        var wavPath = Path.ChangeExtension(path, "wav");
+        await using (var reader = new Mp3FileReaderBase(path, wf => new Mp3FrameDecompressor(wf)))
+        {
+            WaveFileWriter.CreateWaveFile(wavPath, reader);
+        }
+
+        return File(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read), "audio/wav");
     }
 }

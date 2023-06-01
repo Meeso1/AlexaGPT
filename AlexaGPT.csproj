@@ -10,6 +10,8 @@
         <PackageReference Include="Betalgo.OpenAI" Version="6.8.6"/>
         <PackageReference Include="ElevenLabs-DotNet" Version="1.3.2"/>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.5"/>
+        <PackageReference Include="NAudio" Version="2.1.0"/>
+        <PackageReference Include="NLayer.NAudioSupport" Version="1.3.0"/>
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0"/>
     </ItemGroup>
 
