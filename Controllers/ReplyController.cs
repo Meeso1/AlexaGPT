@@ -74,10 +74,9 @@ public class ReplyController : ControllerBase
             voice, defaults, deleteCachedFile: true);
 
         var wavPath = Path.ChangeExtension(path, "wav");
-        await using (var reader = new Mp3FileReader(path))
+        await using (var reader = new Mp3FileReaderBase(path, wf => new Mp3FrameDecompressor(wf)))
         {
-            await using var stream = WaveFormatConversionStream.CreatePcmStream(reader);
-            WaveFileWriter.CreateWaveFile(wavPath, stream);
+            WaveFileWriter.CreateWaveFile(wavPath, reader);
         }
 
         return File(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read), "audio/wav");
