@@ -76,7 +76,8 @@ public class ReplyController : ControllerBase
         var wavPath = Path.ChangeExtension(path, "wav");
         await using (var reader = new Mp3FileReaderBase(path, wf => new Mp3FrameDecompressor(wf)))
         {
-            WaveFileWriter.CreateWaveFile(wavPath, reader);
+            await using var stream = WaveFormatConversionStream.CreatePcmStream(reader);
+            WaveFileWriter.CreateWaveFile(wavPath, stream);
         }
 
         return File(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read), "audio/wav");
